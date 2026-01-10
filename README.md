@@ -1,6 +1,10 @@
 # PRI Voice Agent 
 
 Modular voice first agent framework with extensible skill routing
+
+PRI Voice Agent — modular voice assistant with intent-based skill routing; flagship portfolio analytics (Monte Carlo GBM + sentiment + Entry/Hold/Exit) plus extensible modes for interactive audio demos.
+
+**Portfolio mode**
 - Run **Monte Carlo / GBM** simulations for stock price paths
 - Optionally summarize **news sentiment** (via NewsAPI)
 - Provide a simple **Entry / Hold / Exit** suggestion
