@@ -11,17 +11,15 @@ Pri: Protected-Retrieval Interface
 CLI for speaker-gated QA over audio + text.
 """
 
-# --- Environment and API Key Setup (must be first after shebang/docstring) ---
+# --- Environment and API Key Setup ---
 import os
 from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 
 import yfinance as yf
-# OpenAI/Gemini are imported lazily in generate_gpt_response()
 
 # TTS backend selection
-# Supported: say (macOS built-in), pyttsx3 (offline), elevenlabs (API)
 import subprocess
 TTS_BACKEND = os.getenv("TTS_BACKEND", "say").lower()
 SAY_VOICE = os.getenv("SAY_VOICE", "Zarvox")
@@ -120,7 +118,7 @@ def speak(text: str):
     if backend in ("none", "off", "false", "0"):
         return
 
-    # Keep ElevenLabs available, but default to practical local voices.
+    # Keeping ElevenLabs available but also default to practical local voices.
     if backend == "elevenlabs":
         if elevenlabs_client is None or stream is None:
             logger.warning("ElevenLabs backend selected but not initialized; falling back to 'say'.")
@@ -224,7 +222,7 @@ def fetch_stock_price(symbol):
             return f"💰 {symbol.upper()} is currently trading at ${price:.2f}. (cached)"
         return f"⚠️ I'm having trouble getting the latest data for {symbol.upper()} right now (rate limited)."
 
-# ─── YFINANCE CACHE + RETRY (prevents rate limiting crashes) ─────────────────────────
+# ─── YFINANCE CACHE + RETRY ─────────────────────────
 
 def _get_data_dir() -> str:
     """Return data directory path even if global DATA_DIR is defined later."""
@@ -292,7 +290,7 @@ SPEAKERS_FILE  = os.path.join(DATA_DIR, "speakers.json")
 PASSAGES_FILE  = os.path.join(DATA_DIR, "passages.json")
 INDEX_FILE     = os.path.join(DATA_DIR, "faiss.index")
 
-WHISPER_MODEL  = "tiny.en"          # or "small.en" if you have more power
+WHISPER_MODEL  = "tiny.en"          
 QA_MODEL       = "distilbert-base-uncased-distilled-squad"
 
 # ─── LOGGING ───────────────────────────────────────────────────────────────────
@@ -300,7 +298,7 @@ QA_MODEL       = "distilbert-base-uncased-distilled-squad"
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-# ─── GLOBAL INITIALIZATION (LAZY) ───────────────────────────────────────────
+# ─── GLOBAL INITIALIZATION  ───────────────────────────────────────────
 speaker_encoder = None
 embed_model = None
 qa_pipeline = None
@@ -358,7 +356,7 @@ def ensure_data_dir():
         with open(PASSAGES_FILE, "w") as f:
             json.dump([], f)
     if not os.path.exists(INDEX_FILE):
-        # all-MiniLM-L6-v2 embedding dim is 384; avoid loading the model at startup
+        # all-MiniLM-L6-v2 embedding dim is 384
         dim = 384
         idx = faiss.IndexFlatL2(dim)
         faiss.write_index(idx, INDEX_FILE)
@@ -385,7 +383,7 @@ def cli(ctx):
     """Pri CLI entrypoint."""
     ensure_data_dir()
     # load_models()
-    # If no subcommand was provided, show help
+    # If no subcommand show help
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 
@@ -394,7 +392,7 @@ def cli(ctx):
 @click.argument("wav_path", type=click.Path(exists=True))
 def enroll(name, wav_path):
     """Enroll a new speaker from a WAV file."""
-    # 1) read audio
+    #read audio
     wav = preprocess_wav(wav_path)
     emb = get_speaker_encoder().embed_utterance(wav)
     speakers = load_json(SPEAKERS_FILE)
@@ -411,10 +409,10 @@ def add_doc(text):
     passages.append(passage)
     save_json(passages, PASSAGES_FILE)
 
-    # Load or create index, ensuring correct vector dimension
+    # create index for correct vector dimension
     vec = get_embed_model().encode(passage)
     idx = load_index()
-    # If the index dimension doesn't match the embedding, recreate it
+    # If the index dimension doesn't match the embedding lets recreate it
     if hasattr(idx, 'd') and idx.d != len(vec):
         idx = faiss.IndexFlatL2(len(vec))
     # Add the new vector
@@ -466,13 +464,12 @@ def ask(wav_path, threshold):
 
     print("📚 Context: In Sujal I believe.")
 
-    # Generate GPT-based answer instead of HuggingFace pipeline
     tone = "neutral"  # will be updated with tone detection later
     answer = generate_gpt_response(q, tone=tone)
     click.echo(f"🧠 Pri Answer ({name}): {answer}")
     speak(answer)
 
-    # If the prompt or answer relates to a joke, make Pri laugh naturally
+    # If the prompt or answer relates to a joke lets make Pri laugh naturally
     if "joke" in q.lower() or "😂" in answer.lower() or "laugh" in q.lower():
         speak("That was funny! Hehe.")
 
@@ -491,7 +488,7 @@ def generate_gpt_response(prompt, tone="neutral"):
             response_lines = []
             response_lines.append("Portfolio mode activated. Let me check the stock details for you.")
             # Only include price_info if it will not be repeated in the simulation result
-            price_info = None  # Prevent duplication; simulation includes trading price
+            price_info = None  # Preventing duplication and the simulation includes trading price
             # Detect forecast period and risk level
             days = 30
             trials = 1000
@@ -509,7 +506,7 @@ def generate_gpt_response(prompt, tone="neutral"):
             full_response = "\n".join(response_lines)
             click.echo(full_response)
             speak(full_response)
-            return full_response  # prevent fallback GPT
+            return full_response  # prevent fallback for gpt/gemini
         else:
             # Trigger words present but no recognizable ticker
             msg = "⚠️ I heard a simulation request, but I couldn't recognize the company name. Please say the stock name again (e.g., 'Meta', 'Apple', 'Tesla')."
@@ -517,7 +514,7 @@ def generate_gpt_response(prompt, tone="neutral"):
             speak(msg)
             return msg
 
-    # Updated stock ticker detection using aliases, now always returns both price and sentiment
+    # Updated stock ticker detection using aliases which  always returns both price and sentiment
     symbol, matched_key, match_score = resolve_stock_symbol_from_prompt(prompt)
     if symbol:
         price_info = fetch_stock_price(symbol)
@@ -628,7 +625,6 @@ def ask_text(question):
     q = " ".join(question)
     click.echo(f"📜 Typed Question: {q}")
 
-    # Generate GPT-based answer
     answer = generate_gpt_response(q)
     click.echo(f"🧠 GPT Answer (text mode): {answer}")
 
@@ -669,7 +665,7 @@ def monte_carlo_simulation(symbol, days=30, trials=1000):
         explanation += f"The expected return over this period is approximately {expected_return:.2f}%.\n"
         explanation += f"Prices could vary between ${min_price:.2f} and ${max_price:.2f}, based on recent market trends."
 
-        # Explain the meaning of risk level based on number of trials
+        # meaning of risk level based on number of trials
         if trials <= 600:
             explanation += "\nI used a smaller number of simulations for quicker results, which may reduce stability."
         elif trials >= 2000:
@@ -689,7 +685,7 @@ def monte_carlo_simulation(symbol, days=30, trials=1000):
         plt.savefig(plot_path)
         plt.close()
 
-        # Generate frame-by-frame plots for video
+        # frame-by-frame plots for video
         frame_dir = os.path.join(DATA_DIR, f"{symbol}_frames")
         os.makedirs(frame_dir, exist_ok=True)
 
@@ -704,7 +700,7 @@ def monte_carlo_simulation(symbol, days=30, trials=1000):
             plt.savefig(frame_file)
             plt.close()
 
-        # Create video from frames using ffmpeg (must be installed on system)
+        # video from frames using ffmpeg 
         video_output = os.path.join(DATA_DIR, f"{symbol}_simulation.webm")
         try:
             os.system(f"ffmpeg -y -framerate 10 -i {frame_dir}/frame_%03d.png {video_output}")
@@ -712,7 +708,7 @@ def monte_carlo_simulation(symbol, days=30, trials=1000):
         except Exception as e:
             explanation += f"\n⚠️ Failed to generate video: {str(e)}"
 
-        # Open the video automatically
+        # Opens the video automatically
         try:
             if os.name == 'posix':
                 os.system(f"open {video_output}")  # macOS
@@ -736,7 +732,7 @@ def monte_carlo_simulation(symbol, days=30, trials=1000):
         else:
             sentiment_score = 0
 
-        # Combine return and sentiment for final recommendation
+        # Combining return and sentiment for final recommendation
         if expected_return > 5 and sentiment_score >= 0:
             suggestion = "✅ Entry Signal: Simulation shows favorable returns and sentiment is positive. Consider investing."
         elif expected_return < -5 and sentiment_score <= 0:
