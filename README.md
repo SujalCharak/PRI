@@ -1,6 +1,6 @@
-# PRI Voice Agent (Portfolio Assistant)
+# PRI Voice Agent 
 
-A practical **voice-enabled portfolio assistant** that can:
+Modular voice first agent framework with extensible skill routing
 - Run **Monte Carlo / GBM** simulations for stock price paths
 - Optionally summarize **news sentiment** (via NewsAPI)
 - Provide a simple **Entry / Hold / Exit** suggestion
